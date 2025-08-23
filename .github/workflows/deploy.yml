@@ -1,0 +1,59 @@
+name: Deploy ClinIQ to IONOS
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+        
+    - name: Install dependencies
+      run: npm ci
+      
+    - name: Build project
+      run: npm run build
+      
+    - name: Deploy to IONOS via FTP
+      uses: SamKirkland/FTP-Deploy-Action@v4.3.4
+      with:
+        server: ${{ secrets.FTP_SERVER }}
+        username: ${{ secrets.FTP_USERNAME }}
+        password: ${{ secrets.FTP_PASSWORD }}
+        local-dir: ./dist/
+        server-dir: ./public_html/
+        exclude: |
+          **/.git*
+          **/.git*/**
+          **/node_modules/**
+          **/.env*
+          **/README.md
+          **/.github/**
+          
+    - name: Deploy to IONOS via SSH (Alternative)
+      if: ${{ secrets.SSH_PRIVATE_KEY }}
+      uses: easingthemes/ssh-deploy@main
+      env:
+        SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+        REMOTE_HOST: ${{ secrets.REMOTE_HOST }}
+        REMOTE_USER: ${{ secrets.REMOTE_USER }}
+        SOURCE: "dist/"
+        TARGET: "/public_html/"
+        EXCLUDE: "/dist/, /node_modules/, /.git/, /.github/"
+        
+    - name: Notify deployment status
+      run: |
+        echo "🚀 Deployment completed!"
+        echo "🌐 Your site should be live at: https://cliniq.info"
+        echo "⏰ Deployment time: $(date)"
