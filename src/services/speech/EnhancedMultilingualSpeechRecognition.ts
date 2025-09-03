@@ -224,6 +224,26 @@ export class EnhancedMultilingualSpeechRecognition implements SpeechRecognitionS
       medicalEntities: medicalEntities,
       speakerRole: speakerRole
     };
+  }
+
+  private async enhanceWithAI(transcript: string, language: string): Promise<SpeechRecognitionResult> {
+    try {
+      const response = await fetch('/api/enhance-transcript', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          transcript,
+          language,
+          messages: [
+            {
+              role: "system",
+              content: `Enhance this medical transcript. Return JSON with:
+              {
+                "transcript": "enhanced text",
+                "confidence": 0.9,
+                "medicalEntities": ["entity1", "entity2"],
                 "speakerRole": "doctor" or "patient"
               }`
             }

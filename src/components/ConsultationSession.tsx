@@ -60,7 +60,7 @@ const ConsultationSession = () => {
   // Debug state
   const [showDebugPanel, setShowDebugPanel] = useState(false);
   const [realTimeSpeakerCount, setRealTimeSpeakerCount] = useState(0);
-  const [browserSupport, setBrowserSupport] = useState<any>(null);
+  const [browserSupport, setBrowserSupport] = useState<BrowserSupport | null>(null);
 
   // Check browser support on component mount
   useEffect(() => {

@@ -1,35 +1,110 @@
 
-export interface SpeechRecognitionConfig {
-  provider: 'google' | 'azure' | 'browser' | 'reverie' | 'assemblyai' | 'enhanced-browser' | 'aws-bedrock' | 'anthropic' | 'enhanced-multilingual' | 'basic' | 'aws-medical';
-  language: string;
-  continuous?: boolean;
-  interimResults?: boolean;
-  apiKey?: string;
-  region?: string;
-  endpoint?: string;
-  accessKeyId?: string;
-  secretAccessKey?: string;
-  sessionToken?: string;
-}
-
 export interface SpeechRecognitionResult {
   transcript: string;
   confidence: number;
-  isFinal: boolean;
-  alternatives?: string[];
-  language?: string; // Add language field for automatic detection
-  speaker?: string; // Add speaker field for speaker diarization
+  language?: string;
+  medicalEntities?: string[];
+  speakerRole?: 'doctor' | 'patient' | 'unknown';
+  isFinal?: boolean;
+  timestamp?: number;
+}
+
+export interface SpeechRecognitionConfig {
+  language: string;
+  continuous: boolean;
+  interimResults: boolean;
+  maxAlternatives: number;
+  service: string;
+  apiKey?: string;
+  region?: string;
+  endpoint?: string;
 }
 
 export interface SpeechRecognitionService {
   start(): Promise<void>;
-  stop(): void;
-  onResult(callback: (result: SpeechRecognitionResult) => void): void;
-  onError(callback: (error: string) => void): void;
-  onEnd(callback: () => void): void;
-  onLanguageDetected?(callback: (language: string) => void): void; // Add optional language detection callback
-  onSpeakerDetected?(callback: (speaker: string) => void): void; // Add optional speaker detection callback
+  stop(): Promise<void>;
   isSupported(): boolean;
-  getCurrentLanguage?(): string; // Add optional method to get current language
-  getCurrentSpeaker?(): string; // Add optional method to get current speaker
+  onResult(callback: (result: SpeechRecognitionResult) => void): void;
+  onError(callback: (error: Error) => void): void;
+  onStart(callback: () => void): void;
+  onStop(callback: () => void): void;
+}
+
+export interface AudioConfig {
+  sampleRate: number;
+  channels: number;
+  format: string;
+}
+
+export interface MedicalEntity {
+  text: string;
+  type: 'symptom' | 'diagnosis' | 'medication' | 'procedure' | 'body_part';
+  confidence: number;
+  language: string;
+}
+
+export interface SpeakerInfo {
+  role: 'doctor' | 'patient' | 'unknown';
+  confidence: number;
+  indicators: string[];
+}
+
+export interface TranscriptionSegment {
+  text: string;
+  startTime: number;
+  endTime: number;
+  speaker?: string;
+  confidence: number;
+}
+
+export interface SpeechRecognitionError {
+  error: string;
+  message: string;
+  code?: string;
+  details?: Record<string, unknown>;
+}
+
+// Generic event handler type
+export type EventHandler<T = unknown> = (event: T) => void;
+
+// Generic callback type
+export type Callback<T = unknown> = (data: T) => void;
+
+// Generic API response type
+export interface ApiResponse<T = unknown> {
+  success: boolean;
+  data?: T;
+  error?: string;
+  message?: string;
+}
+
+// Generic configuration type
+export interface GenericConfig {
+  [key: string]: unknown;
+}
+
+// Audio stream type
+export interface AudioStream {
+  id: string;
+  format: string;
+  sampleRate: number;
+  channels: number;
+  data: ArrayBuffer | Blob;
+}
+
+// WebSocket message type
+export interface WebSocketMessage {
+  type: string;
+  data: unknown;
+  timestamp: number;
+}
+
+// Browser support interface
+export interface BrowserSupport {
+  speechRecognition: boolean;
+  mediaDevices: boolean;
+  getUserMedia: boolean;
+  webkitSpeechRecognition: boolean;
+  mozSpeechRecognition: boolean;
+  msSpeechRecognition: boolean;
 }
