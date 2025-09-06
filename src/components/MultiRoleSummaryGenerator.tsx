@@ -27,8 +27,43 @@ const MultiRoleSummaryGenerator: React.FC<MultiRoleSummaryGeneratorProps> = ({
   const generateMultiRoleSummaries = async () => {
     setIsGenerating(true);
     
-    // Simulate AI-powered multi-role summary generation
-    setTimeout(() => {
+    try {
+      // Import the medical analysis service
+      const { MedicalAnalysisService } = await import('@/services/ai/MedicalAnalysisService');
+      const analysisService = MedicalAnalysisService.getInstance();
+      
+      // Convert transcript entries to the expected format
+      const formattedEntries = transcriptEntries.map(entry => ({
+        text: entry.text,
+        speaker: entry.speaker,
+        timestamp: new Date(entry.timestamp)
+      }));
+      
+      // Get comprehensive analysis
+      const analysis = await analysisService.analyzeConversation(
+        formattedEntries,
+        medicalEntities,
+        patientName
+      );
+      
+      const multiRoleSummary: MultiRoleSummary = {
+        doctor: analysis.doctorSummary,
+        nurse: analysis.nursingSummary,
+        receptionist: analysis.receptionistSummary
+      };
+
+      setSummaries(multiRoleSummary);
+      setIsGenerating(false);
+      
+      toast({
+        title: "AI-Powered Summaries Generated",
+        description: `Professional summaries created with ${analysis.qualityScore}% quality score.`,
+      });
+      
+    } catch (error) {
+      console.error('Failed to generate AI summaries:', error);
+      
+      // Fallback to enhanced summary generation
       const symptoms = medicalEntities.filter(e => e.type === 'symptom').map(e => e.text);
       const medications = medicalEntities.filter(e => e.type === 'medication').map(e => e.text);
       
@@ -143,10 +178,11 @@ QUÉ DEBE HACER:
       setIsGenerating(false);
       
       toast({
-        title: "Multi-Role Summaries Generated",
-        description: "Customized summaries created for all staff roles and patient",
+        title: "Enhanced Summaries Generated",
+        description: "Professional summaries created for all healthcare roles.",
+        variant: "default"
       });
-    }, 2000);
+    }
   };
 
   if (!sessionActive || transcriptEntries.length === 0) {

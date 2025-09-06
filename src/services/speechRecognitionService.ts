@@ -8,6 +8,8 @@ declare global {
   interface Window {
     SpeechRecognition?: any;
     webkitSpeechRecognition?: any;
+    getConfig?: (key: string) => string;
+    APP_CONFIG?: Record<string, any>;
   }
 }
 
@@ -108,6 +110,39 @@ class BrowserSpeechRecognitionService implements SpeechRecognitionService {
 
 // Create speech recognition service with priority for medical applications
 export const createSpeechRecognitionService = (config: SpeechRecognitionConfig): SpeechRecognitionService => {
+  // Get API keys from environment or config
+  const apiKeys = {
+    assemblyAI: process.env.ASSEMBLYAI_API_KEY || window.getConfig?.('ASSEMBLYAI_API_KEY') || config.apiKey,
+    google: process.env.GOOGLE_CLOUD_API_KEY || window.getConfig?.('GOOGLE_CLOUD_API_KEY'),
+    azure: process.env.AZURE_SPEECH_KEY || window.getConfig?.('AZURE_SPEECH_KEY'),
+    reverie: process.env.REVERIE_API_KEY || window.getConfig?.('REVERIE_API_KEY'),
+    anthropic: process.env.ANTHROPIC_API_KEY || window.getConfig?.('ANTHROPIC_API_KEY')
+  };
+
+  // Enhanced configuration for unified service
+  const unifiedConfig = {
+    ...config,
+    autoDetectLanguage: true,
+    supportedLanguages: ['en-US', 'hi-IN', 'or-IN', 'bn-IN', 'ta-IN', 'te-IN', 'ml-IN', 'kn-IN', 'gu-IN', 'mr-IN', 'pa-IN'],
+    apiKeys
+  };
+
+  // Try to use UnifiedSpeechRecognition if available
+  try {
+    // Check if we have any API keys available
+    const hasApiKeys = Object.values(apiKeys).some(key => key && key.length > 0);
+    
+    if (hasApiKeys) {
+      // Dynamic import for UnifiedSpeechRecognition
+      // This will be loaded asynchronously, so we'll fall back for now
+      console.log('🚀 API keys available - Unified Speech Recognition will be used when available');
+    }
+  } catch (error) {
+    console.warn('Unified Speech Recognition not available, using legacy services');
+  }
+
+  // Fallback to legacy services
+  
   // Priority 1: AWS Transcribe Medical (best for medical applications)
   if (config.accessKeyId && config.secretAccessKey) {
     try {

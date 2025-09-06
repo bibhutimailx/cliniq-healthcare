@@ -129,6 +129,19 @@ export class AssemblyAISpeechRecognition implements SpeechRecognitionService {
   }
 
   private async startTranscription(): Promise<{ id: string }> {
+    // Medical-specific word boost for better accuracy
+    const medicalWordBoost = [
+      // Common medical terms
+      'hypertension', 'diabetes', 'medication', 'prescription', 'symptoms',
+      'diagnosis', 'treatment', 'patient', 'doctor', 'blood pressure',
+      'heart rate', 'temperature', 'fever', 'cough', 'headache', 'nausea',
+      'dizziness', 'fatigue', 'infection', 'antibiotics', 'aspirin',
+      'paracetamol', 'insulin', 'asthma', 'allergy', 'chronic',
+      // Indian medical terms (transliterated)
+      'davai', 'dava', 'bukhar', 'sir dard', 'pet dard', 'khasi',
+      'saans lene mein takleef', 'chakkar aana', 'kamjori'
+    ];
+
     const response = await fetch('https://api.assemblyai.com/v2/transcript', {
       method: 'POST',
       headers: {
@@ -139,15 +152,39 @@ export class AssemblyAISpeechRecognition implements SpeechRecognitionService {
         audio_url: this.uploadUrl,
         speaker_labels: true,
         language_code: this.config.language === 'auto' ? 'auto' : this.config.language,
+        language_detection: true,
+        
+        // Enhanced features for medical conversations
         auto_highlights: true,
         entity_detection: true,
         sentiment_analysis: true,
-        auto_chapters: true,
-        iab_categories: true,
-        auto_labels: true,
         content_safety: true,
-        speech_threshold: 0.5,
-        language_detection: true
+        
+        // Medical-specific configurations
+        word_boost: medicalWordBoost,
+        boost_param: 'high', // High boost for medical terms
+        speech_threshold: 0.3, // Lower threshold for medical conversations
+        
+        // Advanced processing
+        punctuate: true,
+        format_text: true,
+        disfluencies: false, // Remove ums, ahs for cleaner medical notes
+        
+        // Speaker identification
+        dual_channel: false,
+        webhook_url: null, // Could be used for real-time processing
+        
+        // Custom vocabulary for medical terms
+        custom_spelling: [
+          { from: ['davai', 'dava'], to: 'medicine' },
+          { from: ['bukhar'], to: 'fever' },
+          { from: ['sir dard'], to: 'headache' },
+          { from: ['pet dard'], to: 'abdominal pain' },
+          { from: ['khasi'], to: 'cough' },
+          { from: ['saans lene mein takleef'], to: 'breathing difficulty' },
+          { from: ['chakkar aana'], to: 'dizziness' },
+          { from: ['kamjori'], to: 'weakness' }
+        ]
       })
     });
 
