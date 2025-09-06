@@ -125,14 +125,19 @@ export const useSimpleSpeechRecognition = ({
         setIsRecording(false);
         
         let errorMessage = 'Speech recognition error occurred.';
+        let showToast = true;
         
         switch (event.error) {
           case 'not-allowed':
-            errorMessage = 'Microphone access denied. Please allow microphone access and try again.';
+            errorMessage = 'Microphone access denied. Please allow microphone access in your browser settings and refresh the page.';
+            break;
+          case 'service-not-allowed':
+            errorMessage = 'Speech recognition service blocked. This usually happens in insecure contexts. Please use HTTPS or try a different browser.';
             break;
           case 'no-speech':
             errorMessage = 'No speech detected. Please speak more clearly.';
-            return; // Don't show toast for no-speech, it's normal
+            showToast = false; // Don't show toast for no-speech, it's normal
+            break;
           case 'audio-capture':
             errorMessage = 'Microphone not found. Please check your microphone connection.';
             break;
@@ -140,16 +145,22 @@ export const useSimpleSpeechRecognition = ({
             errorMessage = 'Network error. Please check your internet connection.';
             break;
           case 'aborted':
-            return; // Don't show toast for aborted, it's intentional
+            showToast = false; // Don't show toast for aborted, it's intentional
+            break;
+          case 'language-not-supported':
+            errorMessage = 'Selected language not supported. Please try English (US).';
+            break;
           default:
-            errorMessage = `Speech recognition error: ${event.error}`;
+            errorMessage = `Speech recognition error: ${event.error}. Try refreshing the page or using a different browser.`;
         }
 
-        toast({
-          title: "Speech Recognition Error",
-          description: errorMessage,
-          variant: "destructive"
-        });
+        if (showToast) {
+          toast({
+            title: "Speech Recognition Error",
+            description: errorMessage,
+            variant: "destructive"
+          });
+        }
       };
 
       setRecognition(recognitionInstance);
@@ -176,15 +187,32 @@ export const useSimpleSpeechRecognition = ({
 
     try {
       // Request microphone permission first
-      await navigator.mediaDevices.getUserMedia({ audio: true });
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      console.log('✅ Microphone access granted');
       
-      recognition.start();
-      console.log('🎤 Starting speech recognition...');
+      // Stop the stream immediately as we only needed permission
+      stream.getTracks().forEach(track => track.stop());
+      
+      // Small delay to ensure permission is processed
+      setTimeout(() => {
+        try {
+          recognition.start();
+          console.log('🎤 Starting speech recognition...');
+        } catch (startError) {
+          console.error('❌ Failed to start recognition after permission:', startError);
+          toast({
+            title: "Speech Recognition Start Failed",
+            description: "Try refreshing the page or using Chrome browser.",
+            variant: "destructive"
+          });
+        }
+      }, 100);
+      
     } catch (error) {
-      console.error('❌ Failed to start speech recognition:', error);
+      console.error('❌ Failed to get microphone access:', error);
       toast({
         title: "Microphone Access Required",
-        description: "Please allow microphone access to use speech recognition.",
+        description: "Please allow microphone access in your browser and refresh the page.",
         variant: "destructive"
       });
     }

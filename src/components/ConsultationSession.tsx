@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useSpeechRecognition } from '@/hooks/useSpeechRecognition';
-import { useSimpleSpeechRecognition } from '@/hooks/useSimpleSpeechRecognition';
+import { useWhisperSpeechRecognition } from '@/hooks/useWhisperSpeechRecognition';
+import WhisperConfig from './WhisperConfig';
 import { useConsultationSession } from '@/hooks/useConsultationSession';
 import SessionHeader from './SessionHeader';
 import SessionSetup from './SessionSetup';
@@ -10,7 +11,7 @@ import FeatureGrids from './FeatureGrids';
 import NotesSection from './NotesSection';
 import PatientProfileManager from './PatientProfileManager';
 import AIAnalysisSection from './AIAnalysisSection';
-// import { useProductionSpeechRecognition } from '@/hooks/useProductionSpeechRecognition'; // Temporarily disabled
+import { useProductionSpeechRecognition } from '@/hooks/useProductionSpeechRecognition';
 import SpeechProviderConfig from './SpeechProviderConfig';
 import { getBestAvailableProvider } from '@/services/speechRecognitionService';
 import { SpeechRecognitionConfig } from '@/types/speechRecognition';
@@ -58,6 +59,11 @@ const ConsultationSession = () => {
     interimResults: false
   });
 
+  // Whisper configuration state
+  const [whisperApiKey, setWhisperApiKey] = useState('');
+  const [useWhisper, setUseWhisper] = useState(false);
+  const [whisperLanguage, setWhisperLanguage] = useState('auto');
+
   // Debug state
   const [showDebugPanel, setShowDebugPanel] = useState(false);
   const [realTimeSpeakerCount, setRealTimeSpeakerCount] = useState(0);
@@ -77,27 +83,34 @@ const ConsultationSession = () => {
     }
   }, []);
 
-  // Use simple speech recognition for immediate functionality
-  const { 
-    isRecording, 
-    isSupported,
-    currentSpeaker,
-    toggleRecording, 
-    startRecording,
-    stopRecording,
-    setCurrentSpeaker
-  } = useSimpleSpeechRecognition({
-    language: selectedLanguage,
-    onTranscriptEntry: handleTranscriptEntry
+  // Use production speech recognition instead of the old hook
+  const productionSpeech = useProductionSpeechRecognition({
+    config: speechConfig,
+    onTranscriptEntry: handleTranscriptEntry,
+    onLanguageDetected: handleLanguageDetected
   });
 
-  // Legacy variables for compatibility
-  const connectionStatus = isSupported ? 'connected' : 'disconnected';
-  const speakerToggle = setCurrentSpeaker;
-  const totalSpeakers = 1; // Simple implementation
-  const serviceProvider = 'Browser Native';
+  // Use Whisper speech recognition
+  const whisperSpeech = useWhisperSpeechRecognition({
+    apiKey: whisperApiKey,
+    language: whisperLanguage,
+    onTranscriptEntry: handleTranscriptEntry,
+    chunkDuration: 8000 // 8 seconds for better accuracy
+  });
 
-  // Simple speech config for compatibility
+  // Use the appropriate speech recognition service
+  const activeSpeech = useWhisper && whisperApiKey ? whisperSpeech : productionSpeech;
+  
+  const { 
+    isRecording, 
+    connectionStatus,
+    toggleRecording, 
+    speakerToggle, 
+    totalSpeakers,
+    serviceProvider 
+  } = activeSpeech;
+
+  // Update speech config when language changes
   useEffect(() => {
     const langCode = languages.find(l => l.value === selectedLanguage)?.code || 'en-US';
     setSpeechConfig(prev => ({ ...prev, language: langCode }));
@@ -218,6 +231,38 @@ const ConsultationSession = () => {
             currentConfig={speechConfig}
             onConfigUpdate={handleSpeechConfigUpdate}
           />
+
+          {/* Whisper Configuration */}
+          <div className="space-y-4">
+            <div className="flex items-center gap-4">
+              <label className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  checked={useWhisper}
+                  onChange={(e) => setUseWhisper(e.target.checked)}
+                  className="w-4 h-4"
+                />
+                <span className="font-medium">Use OpenAI Whisper (Premium)</span>
+              </label>
+              {useWhisper && whisperApiKey && (
+                <Badge className="bg-purple-100 text-purple-800">
+                  🚀 Whisper Active
+                </Badge>
+              )}
+            </div>
+
+            {useWhisper && (
+              <WhisperConfig
+                apiKey={whisperApiKey}
+                language={whisperLanguage}
+                onApiKeyChange={setWhisperApiKey}
+                onLanguageChange={setWhisperLanguage}
+                onTest={toggleRecording}
+                isConnected={whisperSpeech.isSupported && !!whisperApiKey}
+                isRecording={isRecording && useWhisper}
+              />
+            )}
+          </div>
           
           <SessionSetup
             patientName={patientName}
