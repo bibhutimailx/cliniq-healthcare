@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { TranscriptEntry, Language } from '@/types/consultation';
 import { useToast } from '@/hooks/use-toast';
 import { createSpeechRecognition, handleSpeechRecognitionError } from '@/utils/speechRecognitionConfig';
+import { createSimpleSpeechRecognition, testMicrophoneAccess, checkBrowserSupport } from '@/utils/simpleSpeechConfig';
 import { voiceSignatureDetection } from '@/utils/voiceSignatureDetection';
 
 interface UseSpeechRecognitionProps {
@@ -26,9 +27,54 @@ export const useSpeechRecognition = ({
   const { toast } = useToast();
 
   useEffect(() => {
-    const recognition = createSpeechRecognition(selectedLanguage, languages);
-    
-    if (recognition) {
+    const initializeSpeechRecognition = async () => {
+      // Check browser support first
+      const support = checkBrowserSupport();
+      if (!support.speechRecognition) {
+        toast({
+          title: "Speech Recognition Not Supported",
+          description: "Your browser doesn't support speech recognition. Please use Chrome, Edge, or Safari.",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      // Test microphone access
+      const hasAccess = await testMicrophoneAccess();
+      if (!hasAccess) {
+        toast({
+          title: "Microphone Access Required",
+          description: "Please allow microphone access to use speech recognition.",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      // Try advanced speech recognition first, fallback to simple
+      let recognition = null;
+      
+      try {
+        // Try advanced service if API key is available
+        recognition = createSpeechRecognition(selectedLanguage, languages);
+      } catch (error) {
+        console.warn('Advanced speech recognition not available:', error);
+      }
+      
+      // Fallback to simple browser recognition
+      if (!recognition) {
+        recognition = createSimpleSpeechRecognition(selectedLanguage, languages);
+      }
+
+      if (!recognition) {
+        toast({
+          title: "Speech Recognition Error",
+          description: "Unable to initialize speech recognition service.",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      // Set up recognition event handlers
       recognition.onresult = (event: any) => {
         const lastResult = event.results[event.results.length - 1];
         if (lastResult.isFinal) {
@@ -108,27 +154,18 @@ export const useSpeechRecognition = ({
       };
 
       setSpeechRecognition(recognition);
-    } else {
-      toast({
-        title: "Speech Recognition Not Supported",
-        description: "Your browser doesn't support speech recognition. Please use Chrome or Edge.",
-        variant: "destructive"
-      });
-    }
+    };
 
+    // Initialize speech recognition
+    initializeSpeechRecognition();
+
+    // Cleanup function
     return () => {
       if (restartTimeoutRef.current) {
         clearTimeout(restartTimeoutRef.current);
       }
-      if (recognition && isRecording) {
-        try {
-          recognition.stop();
-        } catch (e) {
-          console.error('Error stopping recognition on cleanup:', e);
-        }
-      }
     };
-  }, [selectedLanguage, languages, onTranscriptEntry, onLanguageDetected, isRecording, toast]);
+  }, [selectedLanguage, languages, toast, onTranscriptEntry, onLanguageDetected]);
 
   const toggleRecording = useCallback(() => {
     if (restartTimeoutRef.current) {

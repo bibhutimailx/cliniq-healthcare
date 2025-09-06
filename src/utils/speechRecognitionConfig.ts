@@ -1,25 +1,125 @@
 
 import { Language, SpeechRecognitionWindow } from '@/types/consultation';
+import { createSpeechRecognitionService } from '@/services/speechRecognitionService';
 
 export const createSpeechRecognition = (selectedLanguage: string, languages: Language[]) => {
+  // Get API keys from configuration
+  const apiKeys = {
+    assemblyAI: window.getConfig?.('ASSEMBLYAI_API_KEY') || '',
+    google: window.getConfig?.('GOOGLE_CLOUD_API_KEY') || '',
+    azure: window.getConfig?.('AZURE_SPEECH_KEY') || '',
+    reverie: window.getConfig?.('REVERIE_API_KEY') || '',
+    anthropic: window.getConfig?.('ANTHROPIC_API_KEY') || ''
+  };
+
+  // Get language code
+  const selectedLangCode = languages.find(l => l.value === selectedLanguage)?.code || 'en-US';
+  
+  // Try to create modern speech recognition service first
+  if (apiKeys.assemblyAI) {
+    try {
+      const modernService = createSpeechRecognitionService({
+        language: selectedLangCode,
+        continuous: true,
+        interimResults: false,
+        apiKey: apiKeys.assemblyAI,
+        provider: 'assemblyai'
+      });
+      
+      if (modernService.isSupported()) {
+        console.log('🚀 Using modern speech recognition service');
+        return createBrowserCompatibleWrapper(modernService);
+      }
+    } catch (error) {
+      console.warn('Modern speech service not available:', error);
+    }
+  }
+
+  // Fallback to browser speech recognition
   const windowWithSpeech = window as SpeechRecognitionWindow;
   const SpeechRecognition = windowWithSpeech.SpeechRecognition || windowWithSpeech.webkitSpeechRecognition;
   
   if (!SpeechRecognition) {
+    console.error('No speech recognition support available');
     return null;
   }
 
   const recognition = new SpeechRecognition();
-  
-  // Improved configuration based on reference code
   recognition.continuous = true;
-  recognition.interimResults = false; // Only get final results for cleaner transcripts
-  recognition.maxAlternatives = 1; // Simplified to avoid complexity
-  
-  const selectedLangCode = languages.find(l => l.value === selectedLanguage)?.code || 'en-US';
+  recognition.interimResults = false;
+  recognition.maxAlternatives = 1;
   recognition.lang = selectedLangCode;
 
+  console.log('🌐 Using browser speech recognition fallback');
   return recognition;
+};
+
+// Create a browser-compatible wrapper for modern speech services
+const createBrowserCompatibleWrapper = (modernService: any) => {
+  const wrapper = {
+    continuous: true,
+    interimResults: false,
+    lang: modernService.getCurrentLanguage(),
+    onresult: null as any,
+    onerror: null as any,
+    onend: null as any,
+    onstart: null as any,
+    
+    start: async () => {
+      try {
+        await modernService.start();
+        if (wrapper.onstart) wrapper.onstart();
+      } catch (error) {
+        if (wrapper.onerror) wrapper.onerror({ error: 'start-error', message: error });
+      }
+    },
+    
+    stop: async () => {
+      try {
+        await modernService.stop();
+        if (wrapper.onend) wrapper.onend();
+      } catch (error) {
+        console.error('Error stopping speech recognition:', error);
+      }
+    },
+    
+    abort: async () => {
+      await wrapper.stop();
+    }
+  };
+
+  // Set up callbacks
+  modernService.onResult((result: any) => {
+    if (wrapper.onresult) {
+      const event = {
+        results: [{
+          isFinal: result.isFinal,
+          0: {
+            transcript: result.transcript,
+            confidence: result.confidence
+          }
+        }],
+        resultIndex: 0
+      };
+      Object.defineProperty(event.results, 'length', { value: 1 });
+      Object.defineProperty(event, 'results', { 
+        value: Object.assign([event.results[0]], { length: 1 })
+      });
+      wrapper.onresult(event);
+    }
+  });
+
+  modernService.onError((error: string) => {
+    if (wrapper.onerror) {
+      wrapper.onerror({ error: 'network', message: error });
+    }
+  });
+
+  modernService.onEnd(() => {
+    if (wrapper.onend) wrapper.onend();
+  });
+
+  return wrapper;
 };
 
 export const handleSpeechRecognitionError = (
