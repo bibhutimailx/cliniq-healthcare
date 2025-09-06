@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useSpeechRecognition } from '@/hooks/useSpeechRecognition';
+import { useSimpleSpeechRecognition } from '@/hooks/useSimpleSpeechRecognition';
 import { useConsultationSession } from '@/hooks/useConsultationSession';
 import SessionHeader from './SessionHeader';
 import SessionSetup from './SessionSetup';
@@ -9,7 +10,7 @@ import FeatureGrids from './FeatureGrids';
 import NotesSection from './NotesSection';
 import PatientProfileManager from './PatientProfileManager';
 import AIAnalysisSection from './AIAnalysisSection';
-import { useProductionSpeechRecognition } from '@/hooks/useProductionSpeechRecognition';
+// import { useProductionSpeechRecognition } from '@/hooks/useProductionSpeechRecognition'; // Temporarily disabled
 import SpeechProviderConfig from './SpeechProviderConfig';
 import { getBestAvailableProvider } from '@/services/speechRecognitionService';
 import { SpeechRecognitionConfig } from '@/types/speechRecognition';
@@ -76,21 +77,27 @@ const ConsultationSession = () => {
     }
   }, []);
 
-  // Use production speech recognition instead of the old hook
+  // Use simple speech recognition for immediate functionality
   const { 
     isRecording, 
-    connectionStatus,
+    isSupported,
+    currentSpeaker,
     toggleRecording, 
-    speakerToggle, 
-    totalSpeakers,
-    serviceProvider 
-  } = useProductionSpeechRecognition({
-    config: speechConfig,
-    onTranscriptEntry: handleTranscriptEntry,
-    onLanguageDetected: handleLanguageDetected
+    startRecording,
+    stopRecording,
+    setCurrentSpeaker
+  } = useSimpleSpeechRecognition({
+    language: selectedLanguage,
+    onTranscriptEntry: handleTranscriptEntry
   });
 
-  // Update speech config when language changes
+  // Legacy variables for compatibility
+  const connectionStatus = isSupported ? 'connected' : 'disconnected';
+  const speakerToggle = setCurrentSpeaker;
+  const totalSpeakers = 1; // Simple implementation
+  const serviceProvider = 'Browser Native';
+
+  // Simple speech config for compatibility
   useEffect(() => {
     const langCode = languages.find(l => l.value === selectedLanguage)?.code || 'en-US';
     setSpeechConfig(prev => ({ ...prev, language: langCode }));
