@@ -141,6 +141,53 @@ export const createSpeechRecognitionService = (config: SpeechRecognitionConfig):
     console.warn('Unified Speech Recognition not available, using legacy services');
   }
 
+  // Priority 1: Google Streaming via WebSocket proxy (best diarization)
+  const googleProxyUrl = window.getConfig?.('GOOGLE_STT_PROXY_URL');
+  const googleEnabled = window.getConfig?.('GOOGLE_STT_ENABLED') === 'true';
+  
+  if (googleEnabled && googleProxyUrl && (config.provider === 'google-streaming' || config.provider === 'google-cloud')) {
+    try {
+      // dynamic import to avoid bundle cost when unused
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const mod = require('./speech/GoogleStreamingSpeechService');
+      const service = new mod.GoogleStreamingSpeechService({
+        proxyUrl: googleProxyUrl, // wss://cliniq.org.in/stt
+        languageCode: config.language || 'en-IN',
+        alternativeLanguageCodes: ['hi-IN','bn-IN','ta-IN','te-IN','mr-IN','gu-IN','kn-IN','ml-IN','pa-IN','ur-IN'],
+        diarization: { enableSpeakerDiarization: true, minSpeakerCount: 2, maxSpeakerCount: 2 },
+        sampleRateHertz: 16000
+      });
+      if ((service as any).isSupported()) {
+        console.log('🎙️ Using Google STT Streaming via proxy (diarization enabled)');
+        return service as unknown as SpeechRecognitionService;
+      }
+    } catch (e) {
+      console.warn('Google streaming service not available:', e);
+    }
+  }
+
+  // Legacy Google API check
+  if (config.provider === 'google-streaming' && config.apiBaseUrl) {
+    try {
+      // dynamic import to avoid bundle cost when unused
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const mod = require('./speech/GoogleStreamingSpeechService');
+      const service = new mod.GoogleStreamingSpeechService({
+        proxyUrl: config.apiBaseUrl, // fallback to config apiBaseUrl
+        languageCode: config.language || 'en-IN',
+        alternativeLanguageCodes: ['hi-IN','bn-IN','ta-IN','te-IN','mr-IN','gu-IN','kn-IN','ml-IN','pa-IN','ur-IN'],
+        diarization: { enableSpeakerDiarization: true, minSpeakerCount: 2, maxSpeakerCount: 2 },
+        sampleRateHertz: 16000
+      });
+      if ((service as any).isSupported()) {
+        console.log('🎙️ Using Google STT Streaming via proxy (diarization on)');
+        return service as unknown as SpeechRecognitionService;
+      }
+    } catch (e) {
+      console.warn('Google streaming service not available:', e);
+    }
+  }
+
   // Fallback to legacy services
   
   // Priority 1: AWS Transcribe Medical (best for medical applications)

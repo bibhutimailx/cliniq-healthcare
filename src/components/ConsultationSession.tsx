@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useSpeechRecognition } from '@/hooks/useSpeechRecognition';
 import { useWhisperSpeechRecognition } from '@/hooks/useWhisperSpeechRecognition';
+import { useReliableSpeechRecognition } from '@/hooks/useReliableSpeechRecognition';
 import WhisperConfig from './WhisperConfig';
 import { useConsultationSession } from '@/hooks/useConsultationSession';
 import SessionHeader from './SessionHeader';
@@ -11,7 +12,7 @@ import FeatureGrids from './FeatureGrids';
 import NotesSection from './NotesSection';
 import PatientProfileManager from './PatientProfileManager';
 import AIAnalysisSection from './AIAnalysisSection';
-import { useProductionSpeechRecognition } from '@/hooks/useProductionSpeechRecognition';
+// import { useProductionSpeechRecognition } from '@/hooks/useProductionSpeechRecognition'; // Replaced with reliable speech recognition
 import SpeechProviderConfig from './SpeechProviderConfig';
 import { getBestAvailableProvider } from '@/services/speechRecognitionService';
 import { SpeechRecognitionConfig } from '@/types/speechRecognition';
@@ -51,9 +52,9 @@ const ConsultationSession = () => {
     getLanguageLabel
   } = useConsultationSession();
 
-  // Add speech recognition configuration state - default to browser (no external APIs)
+  // Add speech recognition configuration state - default to Google STT Proxy (best diarization)
   const [speechConfig, setSpeechConfig] = useState<SpeechRecognitionConfig>({
-    provider: 'browser', // Force browser speech recognition to avoid external API issues
+    provider: 'google-streaming', // Use Google STT Proxy for best speaker diarization
     language: 'en-US',
     continuous: true,
     interimResults: false
@@ -83,14 +84,13 @@ const ConsultationSession = () => {
     }
   }, []);
 
-  // Use production speech recognition instead of the old hook
-  const productionSpeech = useProductionSpeechRecognition({
-    config: speechConfig,
-    onTranscriptEntry: handleTranscriptEntry,
-    onLanguageDetected: handleLanguageDetected
+  // Use reliable browser speech recognition (always works)
+  const reliableSpeech = useReliableSpeechRecognition({
+    language: languages.find(l => l.value === selectedLanguage)?.code || 'en-US',
+    onTranscriptEntry: handleTranscriptEntry
   });
 
-  // Use Whisper speech recognition
+  // Use Whisper speech recognition (premium)
   const whisperSpeech = useWhisperSpeechRecognition({
     apiKey: whisperApiKey,
     language: whisperLanguage,
@@ -99,7 +99,7 @@ const ConsultationSession = () => {
   });
 
   // Use the appropriate speech recognition service
-  const activeSpeech = useWhisper && whisperApiKey ? whisperSpeech : productionSpeech;
+  const activeSpeech = useWhisper && whisperApiKey ? whisperSpeech : reliableSpeech;
   
   const { 
     isRecording, 
@@ -175,6 +175,20 @@ const ConsultationSession = () => {
           description: 'Advanced AI with real-time speaker diarization',
           features: ['100+ Languages', 'Speaker Diarization', 'Real-time', 'High Accuracy'],
           icon: <Zap className="h-4 w-4 text-purple-600" />
+        };
+      case 'google-streaming':
+        return {
+          name: 'Google STT Proxy',
+          description: 'Best-in-class speaker diarization for doctor/patient identification',
+          features: ['Speaker Diarization', 'Indian Languages', 'Real-time', 'Medical Optimized', 'No API Key Required'],
+          icon: <Zap className="h-4 w-4 text-green-600" />
+        };
+      case 'google-cloud':
+        return {
+          name: 'Google Cloud API',
+          description: 'Direct Google Cloud Speech-to-Text API',
+          features: ['High Accuracy', 'Multiple Languages', 'Real-time'],
+          icon: <Zap className="h-4 w-4 text-blue-600" />
         };
       case 'google':
         return {

@@ -28,7 +28,12 @@ window.APP_CONFIG = {
   ENABLE_MEDICAL_ENTITIES: true,
   
   // API Endpoints
-  API_BASE_URL: 'https://cliniq.info',
+  API_BASE_URL: 'https://cliniq.org.in',
+  
+  // Google STT Streaming Proxy
+  GOOGLE_STT_PROXY_URL: 'wss://cliniq.org.in/stt',
+  GOOGLE_STT_ENABLED: true,
+  GOOGLE_STT_DEFAULT_PROVIDER: 'google-streaming',
   
   // Analytics (optional)
   GOOGLE_ANALYTICS_ID: '',

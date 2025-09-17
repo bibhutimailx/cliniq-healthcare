@@ -25,12 +25,13 @@ const SpeechProviderConfig: React.FC<SpeechProviderConfigProps> = ({
   const { toast } = useToast();
 
   const providers = [
-    { value: 'browser', label: 'Browser Native', description: 'Built-in browser speech recognition (Recommended - No API key required)' },
+    { value: 'google-streaming', label: 'Google STT Proxy', description: 'Best-in-class speaker diarization (Doctor vs Patient) - Ready to use!' },
+    { value: 'browser', label: 'Browser Native', description: 'Built-in browser speech recognition (Recommended fallback - No API key required)' },
     { value: 'enhanced-browser', label: 'Enhanced Browser', description: 'Improved browser recognition with fallbacks' },
+    { value: 'assemblyai', label: 'AssemblyAI', description: 'Advanced AI-powered recognition with medical terminology' },
     { value: 'anthropic', label: 'Anthropic Claude', description: 'Best AI model for medical understanding and multilingual support' },
     { value: 'aws-bedrock', label: 'AWS Bedrock', description: 'Enterprise-grade, HIPAA compliant, production ready' },
-    { value: 'assemblyai', label: 'AssemblyAI', description: 'Advanced AI-powered recognition' },
-    { value: 'google', label: 'Google Cloud', description: 'Google Cloud Speech-to-Text' },
+    { value: 'google-cloud', label: 'Google Cloud API', description: 'Direct Google Cloud Speech-to-Text API (requires key)' },
     { value: 'azure', label: 'Azure Speech', description: 'Microsoft Azure Speech Services' },
     { value: 'reverie', label: 'Reverie', description: 'Indian language optimized' }
   ];
