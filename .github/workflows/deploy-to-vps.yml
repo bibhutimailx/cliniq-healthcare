@@ -1,0 +1,49 @@
+name: Deploy to VPS
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+        
+    - name: Install dependencies
+      run: npm ci
+      
+    - name: Build application
+      run: npm run build
+      
+    - name: Deploy to VPS via SSH
+      uses: appleboy/ssh-action@v1.0.3
+      with:
+        host: ${{ secrets.VPS_HOST }}
+        username: ${{ secrets.VPS_USER }}
+        key: ${{ secrets.VPS_SSH_KEY }}
+        script: |
+          cd ~/cliniq-healthcare
+          git pull origin main
+          npm install
+          npm run build
+          cp -r dist/* /var/www/html/
+          chown -R www-data:www-data /var/www/html/
+          chmod -R 755 /var/www/html/
+          pm2 restart google-stt-proxy || true
+          echo "✅ Deployment complete!"
+          
+    - name: Test deployment
+      run: |
+        sleep 10
+        curl -f https://cliniq.org.in/ || exit 1
+        echo "✅ Website is responding"
